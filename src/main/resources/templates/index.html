@@ -1,0 +1,1288 @@
+<!--<!DOCTYPE html>-->
+<!--<html xmlns:th="http://www.thymeleaf.org">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <title>PDF Analyser</title>-->
+<!--    <style>-->
+<!--        body {-->
+<!--            font-family: Arial, sans-serif;-->
+<!--            max-width: 800px;-->
+<!--            margin: 40px auto;-->
+<!--            padding: 20px;-->
+<!--        }-->
+<!--        input[type="text"] {-->
+<!--            width: 100%;-->
+<!--            padding: 10px;-->
+<!--            font-size: 16px;-->
+<!--            margin-bottom: 10px;-->
+<!--            box-sizing: border-box;-->
+<!--        }-->
+<!--        button {-->
+<!--            padding: 10px 24px;-->
+<!--            background: #2563eb;-->
+<!--            color: white;-->
+<!--            border: none;-->
+<!--            font-size: 16px;-->
+<!--            cursor: pointer;-->
+<!--            border-radius: 4px;-->
+<!--        }-->
+<!--        table {-->
+<!--            width: 100%;-->
+<!--            border-collapse: collapse;-->
+<!--            margin-top: 24px;-->
+<!--        }-->
+<!--        td {-->
+<!--            padding: 12px;-->
+<!--            border: 1px solid #ddd;-->
+<!--            vertical-align: top;-->
+<!--        }-->
+<!--        td:first-child {-->
+<!--            font-weight: bold;-->
+<!--            width: 160px;-->
+<!--            background: #f9fafb;-->
+<!--        }-->
+<!--        .error {-->
+<!--            color: red;-->
+<!--            padding: 12px;-->
+<!--            background: #fef2f2;-->
+<!--            border: 1px solid #fca5a5;-->
+<!--            border-radius: 4px;-->
+<!--            margin-top: 16px;-->
+<!--        }-->
+<!--        .loading {-->
+<!--            display: none;-->
+<!--            margin-top: 12px;-->
+<!--            color: #555;-->
+<!--        }-->
+<!--    </style>-->
+<!--</head>-->
+<!--<body>-->
+
+<!--<h1>PDF Analyser</h1>-->
+<!--<p>Paste any public PDF URL to get a structured analysis.</p>-->
+
+<!--&lt;!&ndash;-->
+<!--    Standard HTML form — POST to /analyse-->
+<!--    th:action is Thymeleaf syntax for the form action URL-->
+<!--&ndash;&gt;-->
+<!--<form method="post" th:action="@{/analyse}" onsubmit="showLoading()">-->
+
+<!--    &lt;!&ndash;-->
+<!--        th:value="${pdfUrl}" — keeps the URL in the box after form submit-->
+<!--        This is data passed from the controller via model.addAttribute-->
+<!--    &ndash;&gt;-->
+<!--    <input-->
+<!--            type="text"-->
+<!--            name="pdfUrl"-->
+<!--            th:value="${pdfUrl}"-->
+<!--            placeholder="https://arxiv.org/pdf/1706.03762"-->
+<!--            required-->
+<!--    />-->
+
+<!--    <button type="submit">Analyse PDF</button>-->
+
+<!--    <p class="loading" id="loadingMsg">-->
+<!--        Analysing... this may take 10–20 seconds for large PDFs.-->
+<!--    </p>-->
+<!--</form>-->
+
+<!--&lt;!&ndash;-->
+<!--    th:if — only renders this block if result.error is not null-->
+<!--    This is Thymeleaf conditional rendering-->
+<!--&ndash;&gt;-->
+<!--<div class="error" th:if="${result != null and result.error != null}">-->
+<!--    <strong>Error:</strong>-->
+<!--    <span th:text="${result.error}"></span>-->
+<!--</div>-->
+
+<!--&lt;!&ndash;-->
+<!--    Only show the results table if result exists AND no error-->
+<!--    th:text="${result.title}" — inserts the value safely (escapes HTML)-->
+<!--&ndash;&gt;-->
+<!--<table th:if="${result != null and result.error == null}">-->
+<!--    <tr>-->
+<!--        <td>Document Type</td>-->
+<!--        <td th:text="${result.documentType}"></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>Title</td>-->
+<!--        <td th:text="${result.title}"></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>Authors</td>-->
+<!--        <td th:text="${result.authors}"></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>Summary</td>-->
+<!--        <td th:text="${result.summary}"></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>Key Takeaway</td>-->
+<!--        <td th:text="${result.keyTakeaway}"></td>-->
+<!--    </tr>-->
+<!--</table>-->
+
+<!--<script>-->
+<!--    // Show loading message when form is submitted-->
+<!--    // Prevents user from thinking the app is frozen during API call-->
+<!--    function showLoading() {-->
+<!--        document.getElementById("loadingMsg").style.display = "block";-->
+<!--    }-->
+<!--</script>-->
+
+<!--</body>-->
+<!--</html>-->
+
+
+<!--<!DOCTYPE html>-->
+<!--<html xmlns:th="http://www.thymeleaf.org" lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>PDF Analyser</title>-->
+<!--    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet">-->
+<!--    <style>-->
+<!--        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }-->
+
+<!--        :root {-->
+<!--            &#45;&#45;bg: #f8fafc;             /* Crisp Slate White/Gray */-->
+<!--            &#45;&#45;surface: #ffffff;        /* Pure White Card Surface */-->
+<!--            &#45;&#45;surface2: #f1f5f9;       /* Light Slate Gray for inputs */-->
+<!--            &#45;&#45;border: #e2e8f0;         /* Clean Slate Border */-->
+<!--            &#45;&#45;accent: #1e293b;         /* Deep Slate Blue (Primary) */-->
+<!--            &#45;&#45;accent-hover: #0f172a;   /* Darker Slate Blue for hover */-->
+<!--            &#45;&#45;teal: #0ea5e9;           /* Digital Teal for actions/highlights */-->
+<!--            &#45;&#45;text: #334155;           /* Slate Dark Gray for excellent readability */-->
+<!--            &#45;&#45;text-heading: #0f172a;   /* Near Black for strong headings */-->
+<!--            &#45;&#45;text-muted: #64748b;     /* Muted Slate Gray for secondary text */-->
+<!--            &#45;&#45;error-bg: #fef2f2;       /* Soft Red */-->
+<!--            &#45;&#45;error-border: #fca5a5;-->
+<!--            &#45;&#45;error-text: #991b1b;-->
+<!--            &#45;&#45;success-bg: #f0fdf4;     /* Soft Green */-->
+<!--            &#45;&#45;success-border: #bbf7d0;-->
+<!--            &#45;&#45;success-text: #166534;-->
+<!--        }-->
+
+<!--        body {-->
+<!--            font-family: 'DM Sans', sans-serif;-->
+<!--            background: var(&#45;&#45;bg);-->
+<!--            color: var(&#45;&#45;text);-->
+<!--            min-height: 100vh;-->
+<!--            overflow-x: hidden;-->
+<!--        }-->
+
+<!--        /* Subtle professional gradient mesh */-->
+<!--        body::before {-->
+<!--            content: '';-->
+<!--            position: fixed;-->
+<!--            top: 0;-->
+<!--            left: 0;-->
+<!--            width: 100%;-->
+<!--            height: 100%;-->
+<!--            background:-->
+<!--                radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.04) 0%, transparent 35%),-->
+<!--                radial-gradient(circle at 100% 100%, rgba(30, 41, 59, 0.03) 0%, transparent 40%);-->
+<!--            pointer-events: none;-->
+<!--            z-index: 0;-->
+<!--        }-->
+
+<!--        .container {-->
+<!--            position: relative;-->
+<!--            z-index: 1;-->
+<!--            max-width: 780px;-->
+<!--            margin: 0 auto;-->
+<!--            padding: 56px 24px 80px;-->
+<!--        }-->
+
+<!--        /* Header */-->
+<!--        .header {-->
+<!--            text-align: center;-->
+<!--            margin-bottom: 48px;-->
+<!--            animation: fadeUp 0.5s ease both;-->
+<!--        }-->
+
+<!--        .header-badge {-->
+<!--            display: inline-flex;-->
+<!--            align-items: center;-->
+<!--            gap: 8px;-->
+<!--            background: #e0f2fe;-->
+<!--            border: 1px solid #bae6fd;-->
+<!--            border-radius: 100px;-->
+<!--            padding: 6px 14px;-->
+<!--            font-size: 11px;-->
+<!--            font-weight: 700;-->
+<!--            color: #0369a1;-->
+<!--            letter-spacing: 0.05em;-->
+<!--            text-transform: uppercase;-->
+<!--            margin-bottom: 20px;-->
+<!--        }-->
+
+<!--        .header-badge::before {-->
+<!--            content: '';-->
+<!--            width: 6px;-->
+<!--            height: 6px;-->
+<!--            border-radius: 50%;-->
+<!--            background: var(&#45;&#45;teal);-->
+<!--        }-->
+
+<!--        h1 {-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            font-size: clamp(2.2rem, 5vw, 3rem);-->
+<!--            font-weight: 700;-->
+<!--            line-height: 1.2;-->
+<!--            letter-spacing: -0.02em;-->
+<!--            margin-bottom: 14px;-->
+<!--        }-->
+
+<!--        .subtitle {-->
+<!--            color: var(&#45;&#45;text-muted);-->
+<!--            font-size: 1.05rem;-->
+<!--            font-weight: 400;-->
+<!--            line-height: 1.6;-->
+<!--        }-->
+
+<!--        /* Input Card */-->
+<!--        .input-card {-->
+<!--            background: var(&#45;&#45;surface);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 16px;-->
+<!--            padding: 32px;-->
+<!--            margin-bottom: 24px;-->
+<!--            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);-->
+<!--            animation: fadeUp 0.5s 0.1s ease both;-->
+<!--            transition: border-color 0.2s, box-shadow 0.2s;-->
+<!--        }-->
+
+<!--        .input-card:focus-within {-->
+<!--            border-color: #cbd5e1;-->
+<!--            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);-->
+<!--        }-->
+
+<!--        .input-label {-->
+<!--            display: block;-->
+<!--            font-size: 11px;-->
+<!--            font-weight: 700;-->
+<!--            letter-spacing: 0.05em;-->
+<!--            text-transform: uppercase;-->
+<!--            color: var(&#45;&#45;text-muted);-->
+<!--            margin-bottom: 10px;-->
+<!--        }-->
+
+<!--        .input-row {-->
+<!--            display: flex;-->
+<!--            gap: 12px;-->
+<!--            align-items: stretch;-->
+<!--        }-->
+
+<!--        .url-input {-->
+<!--            flex: 1;-->
+<!--            background: var(&#45;&#45;surface2);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 10px;-->
+<!--            padding: 14px 18px;-->
+<!--            font-family: inherit;-->
+<!--            font-size: 14px;-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            outline: none;-->
+<!--            transition: border-color 0.2s, background-color 0.2s;-->
+<!--        }-->
+
+<!--        .url-input::placeholder { color: #94a3b8; }-->
+
+<!--        .url-input:focus {-->
+<!--            border-color: var(&#45;&#45;teal);-->
+<!--            background: var(&#45;&#45;surface);-->
+<!--        }-->
+
+<!--        .analyse-btn {-->
+<!--            background: var(&#45;&#45;accent);-->
+<!--            color: #ffffff;-->
+<!--            border: none;-->
+<!--            border-radius: 10px;-->
+<!--            padding: 14px 28px;-->
+<!--            font-family: inherit;-->
+<!--            font-size: 14px;-->
+<!--            font-weight: 700;-->
+<!--            cursor: pointer;-->
+<!--            white-space: nowrap;-->
+<!--            transition: background-color 0.2s, transform 0.1s;-->
+<!--        }-->
+
+<!--        .analyse-btn:hover {-->
+<!--            background: var(&#45;&#45;accent-hover);-->
+<!--        }-->
+
+<!--        .analyse-btn:active { transform: scale(0.98); }-->
+<!--        .analyse-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }-->
+
+<!--        /* Quick links chips */-->
+<!--        .quick-links {-->
+<!--            display: flex;-->
+<!--            align-items: center;-->
+<!--            gap: 8px;-->
+<!--            flex-wrap: wrap;-->
+<!--            margin-top: 20px;-->
+<!--        }-->
+
+<!--        .quick-links-label {-->
+<!--            font-size: 11px;-->
+<!--            font-weight: 700;-->
+<!--            color: var(&#45;&#45;text-muted);-->
+<!--            text-transform: uppercase;-->
+<!--        }-->
+
+<!--        .quick-chip {-->
+<!--            background: var(&#45;&#45;surface2);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 100px;-->
+<!--            padding: 6px 14px;-->
+<!--            font-size: 12.5px;-->
+<!--            color: var(&#45;&#45;text);-->
+<!--            cursor: pointer;-->
+<!--            transition: all 0.2s;-->
+<!--        }-->
+
+<!--        .quick-chip:hover {-->
+<!--            background: #e2e8f0;-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            border-color: #cbd5e1;-->
+<!--        }-->
+
+<!--        /* Loading card */-->
+<!--        .loading-card {-->
+<!--            background: var(&#45;&#45;surface);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 16px;-->
+<!--            padding: 40px;-->
+<!--            text-align: center;-->
+<!--            display: none;-->
+<!--            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);-->
+<!--            animation: fadeUp 0.3s ease both;-->
+<!--        }-->
+
+<!--        .loading-card.visible { display: block; }-->
+
+<!--        .spinner {-->
+<!--            width: 40px;-->
+<!--            height: 40px;-->
+<!--            border: 3px solid var(&#45;&#45;surface2);-->
+<!--            border-top-color: var(&#45;&#45;teal);-->
+<!--            border-radius: 50%;-->
+<!--            animation: spin 0.8s linear infinite;-->
+<!--            margin: 0 auto 16px;-->
+<!--        }-->
+
+<!--        @keyframes spin { to { transform: rotate(360deg); } }-->
+
+<!--        .loading-text {-->
+<!--            font-size: 1rem;-->
+<!--            font-weight: 700;-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            margin-bottom: 4px;-->
+<!--        }-->
+
+<!--        .loading-sub {-->
+<!--            font-size: 13px;-->
+<!--            color: var(&#45;&#45;text-muted);-->
+<!--        }-->
+
+<!--        /* Error card */-->
+<!--        .error-card {-->
+<!--            background: var(&#45;&#45;error-bg);-->
+<!--            border: 1px solid var(&#45;&#45;error-border);-->
+<!--            border-radius: 12px;-->
+<!--            padding: 20px;-->
+<!--            display: flex;-->
+<!--            gap: 14px;-->
+<!--            align-items: flex-start;-->
+<!--            margin-bottom: 24px;-->
+<!--            animation: fadeUp 0.3s ease both;-->
+<!--        }-->
+
+<!--        .error-icon { font-size: 18px; color: var(&#45;&#45;error-text); }-->
+<!--        .error-title { font-weight: 700; font-size: 14px; color: var(&#45;&#45;error-text); margin-bottom: 2px; }-->
+<!--        .error-message { font-size: 13.5px; color: var(&#45;&#45;error-text); opacity: 0.9; }-->
+
+<!--        /* Results Card */-->
+<!--        .results-card {-->
+<!--            background: var(&#45;&#45;surface);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 16px;-->
+<!--            overflow: hidden;-->
+<!--            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);-->
+<!--            animation: fadeUp 0.4s ease both;-->
+<!--            margin-bottom: 24px;-->
+<!--        }-->
+
+<!--        .results-header {-->
+<!--            background: var(&#45;&#45;surface2);-->
+<!--            border-bottom: 1px solid var(&#45;&#45;border);-->
+<!--            padding: 18px 28px;-->
+<!--            display: flex;-->
+<!--            align-items: center;-->
+<!--            justify-content: space-between;-->
+<!--        }-->
+
+<!--        .results-title {-->
+<!--            font-weight: 700;-->
+<!--            font-size: 12px;-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            display: flex;-->
+<!--            align-items: center;-->
+<!--            gap: 8px;-->
+<!--            text-transform: uppercase;-->
+<!--            letter-spacing: 0.05em;-->
+<!--        }-->
+
+<!--        .results-title::before {-->
+<!--            content: '';-->
+<!--            width: 8px;-->
+<!--            height: 8px;-->
+<!--            border-radius: 50%;-->
+<!--            background: #22c55e;-->
+<!--        }-->
+
+<!--        .copy-btn {-->
+<!--            background: var(&#45;&#45;surface);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 6px;-->
+<!--            padding: 6px 14px;-->
+<!--            font-size: 12px;-->
+<!--            color: var(&#45;&#45;text);-->
+<!--            font-weight: 500;-->
+<!--            cursor: pointer;-->
+<!--            transition: all 0.15s;-->
+<!--        }-->
+
+<!--        .copy-btn:hover {-->
+<!--            border-color: #cbd5e1;-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            background: var(&#45;&#45;surface2);-->
+<!--        }-->
+
+<!--        .results-body { padding: 8px 0; }-->
+
+<!--        .result-row {-->
+<!--            display: grid;-->
+<!--            grid-template-columns: 160px 1fr;-->
+<!--            border-bottom: 1px solid var(&#45;&#45;surface2);-->
+<!--        }-->
+
+<!--        .result-row:last-child { border-bottom: none; }-->
+
+<!--        .result-label {-->
+<!--            padding: 20px 28px;-->
+<!--            font-size: 11px;-->
+<!--            font-weight: 700;-->
+<!--            text-transform: uppercase;-->
+<!--            letter-spacing: 0.05em;-->
+<!--            color: var(&#45;&#45;text-muted);-->
+<!--        }-->
+
+<!--        .result-value {-->
+<!--            padding: 18px 28px 18px 24px;-->
+<!--            font-size: 14.5px;-->
+<!--            line-height: 1.6;-->
+<!--            color: var(&#45;&#45;text);-->
+<!--            border-left: 1px solid var(&#45;&#45;surface2);-->
+<!--        }-->
+
+<!--        .result-value.highlight {-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            font-weight: 700;-->
+<!--            font-size: 16px;-->
+<!--        }-->
+
+<!--        .doc-type-badge {-->
+<!--            display: inline-block;-->
+<!--            background: #f0fdfa;-->
+<!--            border: 1px solid #ccfbf1;-->
+<!--            border-radius: 6px;-->
+<!--            padding: 3px 12px;-->
+<!--            font-size: 12px;-->
+<!--            color: #0f766e;-->
+<!--            font-weight: 700;-->
+<!--        }-->
+
+<!--        .key-takeaway-box {-->
+<!--            background: #f0f9ff;-->
+<!--            border: 1px solid #e0f2fe;-->
+<!--            border-radius: 8px;-->
+<!--            padding: 14px 18px;-->
+<!--            font-size: 14px;-->
+<!--            line-height: 1.6;-->
+<!--            color: #0369a1;-->
+<!--        }-->
+
+<!--        /* Footer Grid */-->
+<!--        .info-grid {-->
+<!--            display: grid;-->
+<!--            grid-template-columns: repeat(3, 1fr);-->
+<!--            gap: 16px;-->
+<!--            animation: fadeUp 0.5s 0.2s ease both;-->
+<!--        }-->
+
+<!--        .info-card {-->
+<!--            background: var(&#45;&#45;surface);-->
+<!--            border: 1px solid var(&#45;&#45;border);-->
+<!--            border-radius: 12px;-->
+<!--            padding: 20px;-->
+<!--            text-align: center;-->
+<!--        }-->
+
+<!--        .info-card-icon { font-size: 20px; margin-bottom: 6px; }-->
+
+<!--        .info-card-title {-->
+<!--            font-size: 13px;-->
+<!--            font-weight: 700;-->
+<!--            color: var(&#45;&#45;text-heading);-->
+<!--            margin-bottom: 4px;-->
+<!--        }-->
+
+<!--        .info-card-desc {-->
+<!--            font-size: 11.5px;-->
+<!--            color: var(&#45;&#45;text-muted);-->
+<!--            line-height: 1.45;-->
+<!--        }-->
+
+<!--        @keyframes fadeUp {-->
+<!--            from { opacity: 0; transform: translateY(12px); }-->
+<!--            to { opacity: 1; transform: translateY(0); }-->
+<!--        }-->
+
+<!--        @media (max-width: 600px) {-->
+<!--            .input-row { flex-direction: column; }-->
+<!--            .result-row { grid-template-columns: 1fr; }-->
+<!--            .result-label { padding-bottom: 4px; }-->
+<!--            .result-value { border-left: none; padding-left: 28px; padding-top: 0; }-->
+<!--            .info-grid { grid-template-columns: 1fr; }-->
+<!--        }-->
+<!--    </style>-->
+<!--</head>-->
+<!--<body>-->
+<!--<div class="container">-->
+
+<!--    &lt;!&ndash; Header &ndash;&gt;-->
+<!--    <div class="header">-->
+<!--        <div class="header-badge">AI Powered · LLM Analysis</div>-->
+<!--        <h1>PDF Analyser</h1>-->
+<!--        <p class="subtitle">Paste any public PDF URL and get an instant<br>structured analysis powered by Llama 3.3</p>-->
+<!--    </div>-->
+
+<!--    &lt;!&ndash; Input Card &ndash;&gt;-->
+<!--    <div class="input-card">-->
+<!--        <label class="input-label">PDF Document URL</label>-->
+<!--        <form method="post" th:action="@{/analyse}" onsubmit="handleSubmit()">-->
+<!--            <div class="input-row">-->
+<!--                <input-->
+<!--                        type="url"-->
+<!--                        name="pdfUrl"-->
+<!--                        id="pdfUrlInput"-->
+<!--                        class="url-input"-->
+<!--                        th:value="${pdfUrl}"-->
+<!--                        placeholder="https://export.arxiv.org/pdf/1706.03762"-->
+<!--                        required-->
+<!--                />-->
+<!--                <button type="submit" class="analyse-btn" id="analyseBtn">-->
+<!--                    Analyse PDF-->
+<!--                </button>-->
+<!--            </div>-->
+<!--        </form>-->
+
+<!--        &lt;!&ndash; Quick test links &ndash;&gt;-->
+<!--        <div class="quick-links">-->
+<!--            <span class="quick-links-label">Try:</span>-->
+<!--            <span class="quick-chip" onclick="setUrl('https://export.arxiv.org/pdf/1706.03762')">-->
+<!--                Testing URL-->
+<!--            </span>-->
+
+<!--            <span class="quick-chip" onclick="setUrl('https://pdfobject.com/pdf/sample.pdf')">-->
+<!--                PDF Object Test-->
+<!--            </span>-->
+<!--        </div>-->
+<!--    </div>-->
+
+<!--    &lt;!&ndash; Loading (shown via JS) &ndash;&gt;-->
+<!--    <div class="loading-card" id="loadingCard">-->
+<!--        <div class="spinner"></div>-->
+<!--        <div class="loading-text">Analysing your document...</div>-->
+<!--&lt;!&ndash;        <div class="loading-sub">Fetching PDF → Extracting text → Calling LLM</div>&ndash;&gt;-->
+<!--    </div>-->
+
+<!--    &lt;!&ndash; Error &ndash;&gt;-->
+<!--    <div class="error-card" th:if="${result != null and result.error != null}">-->
+<!--        <div class="error-icon">⚠️</div>-->
+<!--        <div>-->
+<!--            <div class="error-title">Analysis Failed</div>-->
+<!--            <div class="error-message" th:text="${result.error}"></div>-->
+<!--        </div>-->
+<!--    </div>-->
+
+<!--    &lt;!&ndash; Results &ndash;&gt;-->
+<!--    <div class="results-card" th:if="${result != null and result.error == null}">-->
+<!--        <div class="results-header">-->
+<!--            <div class="results-title">Analysis Complete</div>-->
+<!--            <button class="copy-btn" onclick="copyResults()">Copy Results</button>-->
+<!--        </div>-->
+<!--        <div class="results-body" id="resultsBody">-->
+
+<!--            <div class="result-row">-->
+<!--                <div class="result-label">Type</div>-->
+<!--                <div class="result-value">-->
+<!--                    <span class="doc-type-badge" th:text="${result.documentType}"></span>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            <div class="result-row">-->
+<!--                <div class="result-label">Title</div>-->
+<!--                <div class="result-value highlight" th:text="${result.title}"></div>-->
+<!--            </div>-->
+
+<!--            <div class="result-row">-->
+<!--                <div class="result-label">Authors</div>-->
+<!--                <div class="result-value" th:text="${result.authors}"></div>-->
+<!--            </div>-->
+
+<!--            <div class="result-row">-->
+<!--                <div class="result-label">Summary</div>-->
+<!--                <div class="result-value" th:text="${result.summary}"></div>-->
+<!--            </div>-->
+
+<!--            <div class="result-row">-->
+<!--                <div class="result-label">Key Takeaway</div>-->
+<!--                <div class="result-value">-->
+<!--                    <div class="key-takeaway-box" th:text="${result.keyTakeaway}"></div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--        </div>-->
+<!--    </div>-->
+
+<!--    &lt;!&ndash; Info cards &ndash;&gt;-->
+<!--    <div class="info-grid">-->
+<!--        <div class="info-card">-->
+<!--            <div class="info-card-icon">🔒</div>-->
+<!--            <div class="info-card-title">Secure by Design</div>-->
+<!--            <div class="info-card-desc">API key never exposed to browser. All calls happen server-side.</div>-->
+<!--        </div>-->
+<!--        <div class="info-card">-->
+<!--            <div class="info-card-icon">⚡</div>-->
+<!--            <div class="info-card-title">Powered by Llama 3.3</div>-->
+<!--            <div class="info-card-desc">70B parameter model via Groq for fast, accurate analysis.</div>-->
+<!--        </div>-->
+<!--        <div class="info-card">-->
+<!--            <div class="info-card-icon">📄</div>-->
+<!--            <div class="info-card-title">Any Public PDF</div>-->
+<!--            <div class="info-card-desc">Works with research papers, reports, and any accessible PDF URL.</div>-->
+<!--        </div>-->
+<!--    </div>-->
+
+<!--</div>-->
+
+<!--<script>-->
+<!--    function setUrl(url) {-->
+<!--        document.getElementById('pdfUrlInput').value = url;-->
+<!--        document.getElementById('pdfUrlInput').focus();-->
+<!--    }-->
+
+<!--    function handleSubmit() {-->
+<!--        // Find and completely clear old results/errors before loading the new request-->
+<!--        const oldResults = document.querySelector('.results-card');-->
+<!--        const oldErrors = document.querySelector('.error-card');-->
+
+<!--        if (oldResults) oldResults.remove();-->
+<!--        if (oldErrors) oldErrors.remove();-->
+
+<!--        document.getElementById('analyseBtn').disabled = true;-->
+<!--        document.getElementById('analyseBtn').textContent = 'Analysing...';-->
+<!--        document.getElementById('loadingCard').classList.add('visible');-->
+<!--    }-->
+
+<!--    function copyResults() {-->
+<!--        const rows = document.querySelectorAll('.result-row');-->
+<!--        let text = '=== PDF Analysis Results ===\n\n';-->
+<!--        rows.forEach(row => {-->
+<!--            const label = row.querySelector('.result-label')?.textContent.trim();-->
+<!--            const value = row.querySelector('.result-value')?.textContent.trim();-->
+<!--            if (label && value) text += `${label}: ${value}\n\n`;-->
+<!--        });-->
+<!--        navigator.clipboard.writeText(text).then(() => {-->
+<!--            const btn = document.querySelector('.copy-btn');-->
+<!--            btn.textContent = 'Copied!';-->
+<!--            setTimeout(() => btn.textContent = 'Copy Results', 2000);-->
+<!--        });-->
+<!--    }-->
+
+<!--    window.addEventListener('load', () => {-->
+<!--        const hasResults = document.querySelector('.results-card, .error-card');-->
+<!--        if (hasResults) {-->
+<!--            document.getElementById('loadingCard').classList.remove('visible');-->
+<!--        }-->
+<!--    });-->
+<!--</script>-->
+<!--</body>-->
+<!--</html>-->
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Analyzer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:          #f0f2f8;
+            --surface:     #ffffff;
+            --surface2:    #f7f8fc;
+            --border:      #e4e7f0;
+            --accent:      #6c5ce7;
+            --accent-grad: linear-gradient(135deg, #6c5ce7, #a855f7);
+            --accent-soft: #ede9ff;
+            --green:       #00b894;
+            --green-soft:  #e0f7f3;
+            --text:        #1a1d2e;
+            --text-mid:    #4a4f6a;
+            --text-muted:  #9095b0;
+            --navy:        #1e2140;
+            --tag-blue:    #dbeafe;
+            --tag-blue-t:  #3b82f6;
+            --tag-pink:    #fce7f3;
+            --tag-pink-t:  #ec4899;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Topbar ── */
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+        }
+
+        .logo { display: flex; align-items: center; gap: 10px; }
+
+        .logo-icon {
+            width: 34px; height: 34px;
+            background: var(--accent-grad);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+
+        .logo-text { font-size: 17px; font-weight: 700; color: var(--text); }
+        .logo-text span { color: var(--accent); }
+        .logo-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+
+        /* ── Main ── */
+        .main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 36px 24px 80px;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            background: var(--surface);
+            border-radius: 24px;
+            padding: 40px 40px 36px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 24px;
+            align-items: center;
+            animation: fadeUp 0.5s ease both;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(108,92,231,0.08), transparent 70%);
+        }
+
+        .hero-label {
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--accent); margin-bottom: 10px;
+        }
+
+        .hero h1 {
+            font-size: 2.2rem; font-weight: 800;
+            line-height: 1.15; color: var(--text); margin-bottom: 10px;
+        }
+
+        .hero h1 span { color: var(--accent); }
+
+        .hero-desc {
+            font-size: 14px; color: var(--text-muted);
+            line-height: 1.65; margin-bottom: 28px; max-width: 420px;
+        }
+
+        .input-wrap { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+
+        .input-box {
+            flex: 1;
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface2);
+            border: 1.5px solid var(--border);
+            border-radius: 14px; padding: 0 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(108,92,231,0.1);
+        }
+
+        .input-icon { color: var(--text-muted); font-size: 15px; flex-shrink: 0; }
+
+        .url-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            padding: 14px 0; font-family: 'Inter', sans-serif;
+            font-size: 14px; color: var(--text);
+        }
+
+        .url-input::placeholder { color: var(--text-muted); }
+
+        .clear-btn {
+            background: var(--border); border: none;
+            width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 10px; color: var(--text-muted);
+            flex-shrink: 0; transition: background 0.2s;
+        }
+
+        .clear-btn:hover { background: #ccc; }
+
+        .analyse-btn {
+            background: var(--accent-grad); color: #fff; border: none;
+            border-radius: 14px; padding: 14px 24px;
+            font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
+            white-space: nowrap;
+            transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 4px 16px rgba(108,92,231,0.35);
+        }
+
+        .analyse-btn:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(108,92,231,0.45); }
+        .analyse-btn:active { transform: translateY(0); }
+        .analyse-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .security-note {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 12px; color: var(--text-muted);
+        }
+
+        /* Hero illustration */
+        .pdf-card {
+            width: 140px;
+            background: linear-gradient(145deg, #f0f0ff, #e8e4ff);
+            border-radius: 16px; padding: 16px; position: relative;
+            box-shadow: 0 8px 32px rgba(108,92,231,0.15);
+        }
+
+        .pdf-badge {
+            background: var(--accent-grad); color: #fff;
+            font-size: 13px; font-weight: 700; border-radius: 8px;
+            padding: 6px 12px; display: inline-block; margin-bottom: 12px;
+        }
+
+        .pdf-line { height: 6px; border-radius: 4px; background: rgba(108,92,231,0.15); margin-bottom: 6px; }
+        .pdf-search {
+            position: absolute; bottom: -14px; right: -14px;
+            width: 54px; height: 54px;
+            background: linear-gradient(135deg, #a855f7, #6c5ce7);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 4px 16px rgba(108,92,231,0.4);
+        }
+
+        /* ── Status bar ── */
+        .status-bar {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 18px 24px; margin-bottom: 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .status-left { display: flex; align-items: center; gap: 14px; }
+
+        .status-icon {
+            width: 42px; height: 42px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; flex-shrink: 0;
+        }
+
+        .status-icon.success { background: var(--green-soft); }
+        .status-icon.error   { background: #fef2f2; }
+        .status-icon.loading { background: var(--accent-soft); }
+
+        .status-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+        .status-sub   { font-size: 13px; color: var(--text-muted); }
+        .status-time  { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--green); }
+
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2.5px solid var(--accent-soft); border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Results ── */
+        .results-card {
+            background: var(--surface); border-radius: 24px; overflow: hidden;
+            border: 1px solid var(--border); box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+            animation: fadeUp 0.5s 0.05s ease both;
+        }
+
+        .results-header {
+            background: var(--navy); padding: 22px 28px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .results-header-left { display: flex; align-items: center; gap: 14px; }
+
+        .results-header-icon {
+            width: 42px; height: 42px; background: rgba(108,92,231,0.3);
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+
+        .results-header-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+        .results-header-sub   { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+        .results-header-actions { display: flex; gap: 10px; }
+
+        .action-btn {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px; padding: 8px 16px;
+            font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85);
+            cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;
+        }
+
+        .action-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+        .table-head {
+            display: grid; grid-template-columns: 220px 1fr;
+            background: var(--surface2); border-bottom: 1px solid var(--border);
+            padding: 12px 28px;
+        }
+
+        .table-head-cell {
+            font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--text-muted);
+        }
+
+        .result-row {
+            display: grid; grid-template-columns: 220px 1fr;
+            border-bottom: 1px solid var(--border); transition: background 0.15s;
+        }
+
+        .result-row:last-child { border-bottom: none; }
+        .result-row:hover { background: var(--surface2); }
+
+        .result-field {
+            padding: 20px 28px; display: flex; align-items: flex-start;
+            gap: 12px; border-right: 1px solid var(--border);
+        }
+
+        .field-icon {
+            width: 34px; height: 34px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0; margin-top: 1px;
+        }
+
+        .field-icon.blue   { background: #eff6ff; }
+        .field-icon.purple { background: #f5f3ff; }
+        .field-icon.green  { background: #f0fdf4; }
+        .field-icon.orange { background: #fff7ed; }
+        .field-icon.pink   { background: #fdf2f8; }
+
+        .field-name { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 7px; }
+
+        .result-value { padding: 20px 28px; font-size: 14px; line-height: 1.7; color: var(--text-mid); }
+
+        .doc-type-tag {
+            display: inline-block; background: var(--tag-blue); color: var(--tag-blue-t);
+            border-radius: 8px; padding: 5px 14px; font-size: 13px; font-weight: 600;
+        }
+
+        .summary-tag {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: var(--accent-soft); color: var(--accent);
+            border-radius: 20px; padding: 4px 12px;
+            font-size: 11px; font-weight: 600; margin-top: 10px;
+        }
+
+        .takeaway-tag {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: var(--tag-pink); color: var(--tag-pink-t);
+            border-radius: 20px; padding: 4px 12px;
+            font-size: 11px; font-weight: 600; margin-top: 10px;
+        }
+
+        .loading-status { display: none; }
+        .loading-status.visible { display: flex; }
+
+        @keyframes fadeUp {
+            from { opacity:0; transform:translateY(16px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+
+        @media (max-width: 640px) {
+            .hero { grid-template-columns: 1fr; }
+            .pdf-card { display: none; }
+            .result-row { grid-template-columns: 1fr; }
+            .result-field { border-right: none; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+            .table-head { display: none; }
+            .topbar { padding: 0 16px; }
+            .main { padding: 20px 16px 60px; }
+            .hero { padding: 28px 20px; }
+            .input-wrap { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+    <div class="logo">
+        <div class="logo-icon">✦</div>
+        <div>
+            <div class="logo-text">PDF <span>Analyzer</span></div>
+            <div class="logo-sub">AI powered insights from your documents</div>
+        </div>
+    </div>
+</div>
+
+<div class="main">
+
+    <!-- Hero -->
+    <div class="hero">
+        <div class="hero-left">
+            <div class="hero-label">✦ AI Document Analysis</div>
+            <h1>Analyze any <span>PDF</span></h1>
+            <p class="hero-desc">Paste a publicly accessible PDF URL and let AI extract key insights for you.</p>
+
+            <form method="post" th:action="@{/analyse}" onsubmit="handleSubmit()">
+                <div class="input-wrap">
+                    <div class="input-box">
+                        <span class="input-icon">🔗</span>
+                        <input
+                                type="url"
+                                name="pdfUrl"
+                                id="pdfUrlInput"
+                                class="url-input"
+                                th:value="${pdfUrl}"
+                                placeholder="https://arxiv.org/pdf/1706.03762"
+                                required
+                        />
+                        <button type="button" class="clear-btn" onclick="clearInput()">✕</button>
+                    </div>
+                    <button type="submit" class="analyse-btn" id="analyseBtn">
+                        ✦ Analyze Document
+                    </button>
+                </div>
+            </form>
+
+            <div class="security-note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9095b0" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                The PDF must be publicly accessible. Your data is secure and not stored.
+            </div>
+        </div>
+
+        <div>
+            <div class="pdf-card">
+                <div class="pdf-badge">PDF</div>
+                <div class="pdf-line" style="width:90%"></div>
+                <div class="pdf-line" style="width:80%"></div>
+                <div class="pdf-line" style="width:60%"></div>
+                <div class="pdf-line" style="width:90%"></div>
+                <div class="pdf-line" style="width:70%"></div>
+                <div class="pdf-search">🔍</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="status-bar loading-status" id="loadingBar">
+        <div class="status-left">
+            <div class="status-icon loading"><div class="spinner"></div></div>
+            <div>
+                <div class="status-title">Analyzing document, please wait…</div>
+<!--                <div class="status-sub"></div>-->
+            </div>
+        </div>
+    </div>
+
+    <!-- Success status -->
+    <div class="status-bar" th:if="${result != null and result.error == null}" style="border-color:#bbf7d0;">
+        <div class="status-left">
+            <div class="status-icon success">✅</div>
+            <div>
+                <div class="status-title">Analysis complete</div>
+                <div class="status-sub">The document has been analyzed successfully.</div>
+            </div>
+        </div>
+        <div class="status-time">🕐 Done</div>
+    </div>
+
+    <!-- Error status — clean single line only -->
+    <div class="status-bar" th:if="${result != null and result.error != null}" style="border-color:#fecaca;">
+        <div class="status-left">
+            <div class="status-icon error">⚠️</div>
+            <div>
+                <div class="status-title" style="color:#dc2626;" th:text="${errorTitle}">Analysis Failed</div>
+                <div class="status-sub" th:text="${errorMessage}"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-card" th:if="${result != null and result.error == null}">
+        <div class="results-header">
+            <div class="results-header-left">
+                <div class="results-header-icon">📦</div>
+                <div>
+                    <div class="results-header-title">Analysis Results</div>
+                    <div class="results-header-sub">Structured information extracted from the document.</div>
+                </div>
+            </div>
+            <div class="results-header-actions">
+                <button class="action-btn" onclick="copyResults()">📋 Copy All</button>
+<!--                <button class="action-btn" onclick="downloadResults()">⬇ Download</button>-->
+            </div>
+        </div>
+
+        <div class="table-head">
+            <div class="table-head-cell">⠿ Field</div>
+            <div class="table-head-cell">Extracted Information</div>
+        </div>
+
+        <div class="result-row">
+            <div class="result-field">
+                <div class="field-icon blue">📄</div>
+                <div class="field-name">Document Type</div>
+            </div>
+            <div class="result-value">
+                <span class="doc-type-tag" th:text="${result.documentType}"></span>
+            </div>
+        </div>
+
+        <div class="result-row">
+            <div class="result-field">
+                <div class="field-icon purple">T</div>
+                <div class="field-name">Title</div>
+            </div>
+            <div class="result-value" style="font-weight:500; color:var(--text);" th:text="${result.title}"></div>
+        </div>
+
+        <div class="result-row">
+            <div class="result-field">
+                <div class="field-icon green">👥</div>
+                <div class="field-name">Authors</div>
+            </div>
+            <div class="result-value" th:text="${result.authors}"></div>
+        </div>
+
+        <div class="result-row">
+            <div class="result-field">
+                <div class="field-icon orange">☰</div>
+                <div class="field-name">Summary</div>
+            </div>
+            <div class="result-value">
+                <span th:text="${result.summary}"></span><br>
+            </div>
+        </div>
+
+        <div class="result-row">
+            <div class="result-field">
+                <div class="field-icon pink">🎯</div>
+                <div class="field-name">Key Takeaway</div>
+            </div>
+            <div class="result-value">
+                <span th:text="${result.keyTakeaway}"></span><br>
+                <span class="takeaway-tag">☆ Most important point</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function clearInput() {
+        document.getElementById('pdfUrlInput').value = '';
+        document.getElementById('pdfUrlInput').focus();
+    }
+
+    function handleSubmit() {
+        // Hide any previous results before submitting
+        document.querySelectorAll('.results-card, .status-bar:not(.loading-status)')
+            .forEach(el => el.style.display = 'none');
+        document.getElementById('analyseBtn').disabled = true;
+        document.getElementById('analyseBtn').textContent = '⏳ Analyzing...';
+        document.getElementById('loadingBar').classList.add('visible');
+    }
+
+    function copyResults() {
+        const rows = document.querySelectorAll('.result-row');
+        let text = '=== PDF Analysis Results ===\n\n';
+        rows.forEach(row => {
+            const label = row.querySelector('.field-name')?.textContent.trim();
+            const value = row.querySelector('.result-value')?.innerText.split('\n')[0].trim();
+            if (label && value) text += `${label}:\n${value}\n\n`;
+        });
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.querySelectorAll('.action-btn')[0];
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => btn.textContent = '📋 Copy All', 2000);
+        });
+    }
+
+    function downloadResults() {
+        const rows = document.querySelectorAll('.result-row');
+        let text = '=== PDF Analysis Results ===\n\n';
+        rows.forEach(row => {
+            const label = row.querySelector('.field-name')?.textContent.trim();
+            const value = row.querySelector('.result-value')?.innerText.split('\n')[0].trim();
+            if (label && value) text += `${label}:\n${value}\n\n`;
+        });
+        const blob = new Blob([text], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'pdf-analysis.txt';
+        a.click();
+    }
+
+    window.addEventListener('load', () => {
+        const hasResults = document.querySelector('.results-card, [style*="border-color:#fecaca"], [style*="border-color:#bbf7d0"]');
+        if (hasResults) document.getElementById('loadingBar').classList.remove('visible');
+    });
+</script>
+</body>
+</html>
